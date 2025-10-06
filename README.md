@@ -14,7 +14,7 @@ This project is a lightweight multi-threaded HTTP/1.1 server built in Python usi
 ### Steps to Run
 
 1. Clone or download the repository.
-2. Ensure the `resources` directory is present in the project root. This directory contains themed resources (HTML pages, text documents, and car-themed images such as `ae_86_front.png`, `ae_86_interior.jpg`, etc.).
+2. Ensure the `resources` directory is present in the project root. This directory contains themed resources (HTML pages, text documents, and iPhone 17-themed images such as `iphone17backview.png`, `iphone17features.png`, etc.).
 3. Run the server:
 
    ```bash
@@ -85,4 +85,4 @@ This project is a lightweight multi-threaded HTTP/1.1 server built in Python usi
 
 ---
 
-This server provides a **lightweight, themed demonstration** of HTTP functionality, resource serving, concurrency via threads, and basic security measures.
+This server provides a **lightweight, iPhone 17-themed demonstration** of HTTP functionality, resource serving, concurrency via threads, and basic security measures.
