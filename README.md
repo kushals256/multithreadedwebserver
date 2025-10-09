@@ -1,6 +1,6 @@
 # Multithreaded HTTP Server
 
-This project is a lightweight multi-threaded HTTP/1.1 server built in Python using only the standard library. It supports serving static HTML, text, and image files from a themed resources/ directory, as well as handling JSON file uploads. The server uses a configurable thread pool to process multiple client connections concurrently and includes basic security protections such as path traversal prevention, host header validation, and MIME type enforcement.
+This project delivers a minimal yet efficient HTTP/1.1 server written entirely in Python without any external dependencies. It’s capable of delivering static web content—like HTML pages, text documents, and images—from a styled resources/ folder, while also accepting JSON file uploads. A customizable pool of worker threads enables the server to handle several client requests at the same time. Additionally, it incorporates essential security mechanisms such as directory traversal safeguards, validation of host headers, and strict checks on content types.
 
 ---
 
@@ -9,7 +9,7 @@ This project is a lightweight multi-threaded HTTP/1.1 server built in Python usi
 ### Requirements
 
 * Python 3.7+
-* No external libraries required (uses only Python standard library)
+* No external libraries are needed, as the project relies solely on Python’s standard library.
 
 ### Steps to Run
 
@@ -38,9 +38,9 @@ This project is a lightweight multi-threaded HTTP/1.1 server built in Python usi
 
 ## Binary Transfer Implementation
 
-* Files in the `resources` directory are read in **binary mode (`rb`)** to ensure correct transfer of text and media files.
-* For `.html` files, the server sets the header `Content-Type: text/html; charset=utf-8` and sends them directly to the client.
-* For `.txt` and supported image formats (`.png`, `.jpg`, `.jpeg`), files are sent as raw binary with headers:
+* Files inside the `resources` directory are read in **binary mode (`rb`)** to ensure proper delivery of both text and media content.  
+* `.html` files are served with the header `Content-Type: text/html; charset=utf-8` and sent directly to the client.  
+* `.txt` files and supported image formats (`.png`, `.jpg`, `.jpeg`) are transmitted as raw binary data with the appropriate headers.
 
   * `Content-Type: application/octet-stream`
   * `Content-Disposition: attachment; filename="<filename>"`
@@ -53,36 +53,38 @@ This project is a lightweight multi-threaded HTTP/1.1 server built in Python usi
 * The server uses a **ThreadPoolExecutor** for concurrency.
 * When a client connects:
 
-  1. If a worker thread is available, the request is immediately assigned.
-  2. If all threads are busy, the connection is queued until a thread becomes free.
-* Each worker thread handles:
+  1. If an idle worker thread is available, the incoming request is assigned to it instantly.  
+  2. If all threads are currently occupied, the connection is placed in a queue until a thread becomes available.  
+* Each worker thread is responsible for:
+  
+  * Parsing incoming HTTP requests (`GET` / `POST`)
+  * Serving requested files or handling file uploads
+  * Logging all server activity with timestamps and thread identifiers
 
-  * Parsing HTTP requests (GET/POST)
-  * Serving files or saving uploads
-  * Logging activity with timestamps and thread identifiers
 * This architecture prevents resource exhaustion and ensures fairness between connections.
 
 ---
 
 ## Security Measures Implemented
 
-1. **Path Traversal Protection**: Requests are sanitized using `safe_path()` to ensure files are only served from the `resources` directory.
-2. **MIME Enforcement**: Only specific file types are supported:
+1. **Path Traversal Protection**: Requests are sanitized with `safe_path()` to guarantee files are served exclusively from the `resources` directory.  
+2. **MIME Enforcement**: Only the following file types are supported:  
+   * `.html`, `.txt`, `.png`, `.jpg`, `.jpeg`  
+   * Any other file type returns `415 Unsupported Media Type`.  
+3. **Host Header Validation**: Confirms that requests match the configured host and port, mitigating Host Header attacks.  
+4. **Restricted Uploads**: Only JSON (`Content-Type: application/json`) is accepted via POST; uploaded files are stored in `resources/uploads`.  
+5. **Connection Control**: Enforces a maximum of 100 requests per connection and a keep-alive timeout of 30 seconds to prevent idle, long-lived connections.
 
-   * `.html`, `.txt`, `.png`, `.jpg`, `.jpeg`
-   * Other file types result in `415 Unsupported Media Type`.
-3. **Host Header Validation**: Ensures requests match the configured host and port, preventing Host Header attacks.
-4. **Restricted Uploads**: Only JSON (`Content-Type: application/json`) is accepted via POST. Uploaded files are saved in the `resources/uploads` directory.
-5. **Connection Control**: Limits per-connection requests (`max=100`) and applies a keep-alive timeout (30 seconds) to prevent long-lived idle connections.
 
 ---
 
 ## Limitations
 
-* **Binary transfer buffering**: Files are currently read fully into memory before sending. Large files could cause high memory usage.
-* **Limited MIME types**: Only a small set of file types are supported.
-* **Single-directory serving**: All files must reside under the `resources` directory. Serving from multiple roots is not supported.
+* **Binary transfer buffering**: Files are loaded entirely into memory before being sent, which may lead to high memory usage for large files.  
+* **Limited MIME support**: Only a restricted set of file types is currently handled.  
+* **Single-directory limitation**: All content must be located within the `resources` directory; serving files from multiple directories is not supported.
 
 ---
 
-This server provides a **lightweight, iPhone 17-themed demonstration** of HTTP functionality, resource serving, concurrency via threads, and basic security measures.
+This server offers a **compact, iPhone 17-themed demo** showcasing HTTP handling, file serving, multithreaded concurrency, and fundamental security features.
+
