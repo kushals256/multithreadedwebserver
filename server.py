@@ -8,31 +8,27 @@ import string
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
+# --- Directory setup ---
 BASE_DIR = os.getcwd()
 RESOURCE_DIR = os.path.join(BASE_DIR, "resources")
 UPLOAD_DIR = os.path.join(RESOURCE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# --- Supported file types ---
 SUPPORTED_HTML = [".html"]
 SUPPORTED_TEXT = [".txt"]
 SUPPORTED_IMAGES = [".png", ".jpg", ".jpeg"]
 
+# --- Server configuration ---
 MAX_PERSISTENT_REQUESTS = 100
 KEEP_ALIVE_TIMEOUT = 30
 
 # --- Utility Functions ---
 def safe_path(base, path):
     """
-    Checks if a given path is within a base directory and returns the absolute path if it is.
-    If the path is not within the base directory, returns None.
-
-    Args:
-        base (str): The base directory to check against.
-        path (str): The path to check.
-
-    Returns:
-        str: The absolute path if the path is within the base directory, otherwise None.
-    """    
+    Ensures the given path stays within the base directory.
+    Returns absolute path if safe, otherwise None.
+    """
     base = os.path.abspath(base)
     final = os.path.abspath(os.path.join(base, path))
     return final if final.startswith(base) else None
@@ -40,11 +36,7 @@ def safe_path(base, path):
 
 def log(message):
     """
-    Logs a message with a timestamp and thread name.
-
-    Args:
-        message (str): The message to log.
-
+    Logs messages with timestamp and current thread name.
     """
     thread_name = threading.current_thread().name
     timestamp = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
@@ -53,34 +45,20 @@ def log(message):
 
 def generate_id(length=4):
     """
-    Generates a random string identifier of a given length.
-
-    Args:
-        length (int): The length of the identifier to generate.
-
-    Returns:
-        str: A random string identifier of the given length.
+    Returns a random string of lowercase letters and digits of given length.
     """
     return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
 
 def build_response(status, headers=None, body=b""):
     """
-    Builds an HTTP response with a given status code, headers, and body.
-
-    Args:
-        status (int): The HTTP status code.
-        headers (dict): A dictionary of headers to include in the response.
-        body (bytes): The response body.
-
-    Returns:
-        bytes: The HTTP response as a byte string.
+    Constructs an HTTP response with status, optional headers, and body.
     """
     headers = headers or {}
     lines = [
         f"HTTP/1.1 {status}",
         f"Date: {datetime.datetime.now().strftime('%a, %d %b %Y %H:%M:%S GMT')}",
-        f"Server: Multi-threaded HTTP Server"
+        "Server: Multi-threaded HTTP Server"
     ]
     for k, v in headers.items():
         lines.append(f"{k}: {v}")
@@ -91,18 +69,7 @@ def build_response(status, headers=None, body=b""):
 
 def parse_request(data):
     """
-    Parses an HTTP request byte string into its constituent parts.
-
-    Args:
-        data (bytes): The HTTP request byte string to parse.
-
-    Returns:
-        tuple: A tuple containing the parsed method, path, version, headers, and body.
-            method (str): The HTTP method (e.g. GET, POST, PUT, etc.)
-            path (str): The requested path (e.g. /index.html, /api/data, etc.)
-            version (str): The HTTP version (e.g. HTTP/1.1)
-            headers (dict): A dictionary of headers (e.g. Content-Type, Accept, etc.)
-            body (str): The request body (e.g. JSON data, uploaded file, etc.)
+    Parses HTTP request bytes into method, path, version, headers, and body.
     """
     try:
         text = data.decode("utf-8", errors="ignore")
@@ -124,17 +91,8 @@ def parse_request(data):
 # --- File Handling ---
 def read_file(path):
     """
-    Reads a file from the resources directory and returns its contents, content type, and a disposition header.
-
-    Args:
-        path (str): The path to the file to read.
-
-    Returns:
-        tuple: A tuple containing the file contents, content type, disposition header, and HTTP status code.
-            contents (bytes): The contents of the file.
-            content_type (str): The content type of the file (e.g. text/html, application/octet-stream, etc.).
-            disposition (str): The disposition header of the file (e.g. attachment; filename="example.txt", etc.).
-            status (int): The HTTP status code of the response (e.g. 200, 404, 415, etc.).
+    Reads a file from the resources directory.
+    Returns file content, content type, disposition, status code, and extension.
     """
     if path == "/":
         path = "index.html"
@@ -161,15 +119,8 @@ def read_file(path):
 
 def save_upload(payload):
     """
-    Saves a JSON payload to a file in the uploads directory.
-
-    Args:
-        payload (dict): The JSON payload to save.
-
-    Returns:
-        str: The path to the saved file relative to the uploads directory.
+    Saves JSON payload to a new file in the uploads directory and returns its relative path.
     """
-
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     file_id = generate_id()
     filename = f"upload_{timestamp}_{file_id}.json"
@@ -182,16 +133,7 @@ def save_upload(payload):
 # --- HTTP Handlers ---
 def handle_get(path, conn, keep_alive):
     """
-    Handles an HTTP GET request by reading a file from the resources directory
-    and sending its contents, content type, and disposition header to the client.
-
-    Args:
-        path (str): The path to the file to read.
-        conn (socket.socket): The socket object for the client connection.
-        keep_alive (bool): Whether to keep the connection alive after sending the response.
-
-    Returns:
-        None
+    Handles GET requests by returning requested file with correct headers.
     """
     data, ctype, disposition, status, ext = read_file(path)
     if status in [404, 415, 403]:
@@ -209,6 +151,7 @@ def handle_get(path, conn, keep_alive):
 
     if disposition:
         headers["Content-Disposition"] = disposition
+
     log(f"Sending {ext.upper()[1:]} file: {os.path.basename(path)} ({len(data)} bytes)")
 
     if keep_alive:
@@ -221,19 +164,8 @@ def handle_get(path, conn, keep_alive):
 
 def handle_post(headers, body, conn, keep_alive):
     """
-    Handles an HTTP POST request by parsing the JSON body and saving the
-    uploaded file to the resources/uploads directory.
-
-    Args:
-        headers (dict): The request headers.
-        body (str): The request body.
-        conn (socket.socket): The socket object for the client connection.
-        keep_alive (bool): Whether to keep the connection alive after sending the response.
-
-    Returns:
-        None
+    Handles POST requests: parses JSON and saves as file in uploads directory.
     """
-
     if headers.get("Content-Type", "").lower() != "application/json":
         conn.sendall(build_response(
             "415 Unsupported Media Type",
@@ -277,15 +209,7 @@ def handle_post(headers, body, conn, keep_alive):
 
 def validate_host(host_header, server_host, server_port):
     """
-    Validates an HTTP Host header against the server's host and port.
-
-    Args:
-        host_header (str): The Host header from the HTTP request.
-        server_host (str): The server's host.
-        server_port (int): The server's port.
-
-    Returns:
-        bool: True if the Host header matches the server's host and port, False otherwise.
+    Checks that Host header matches the server's host and port.
     """
     return host_header == f"{server_host}:{server_port}" if host_header else False
 
@@ -293,17 +217,7 @@ def validate_host(host_header, server_host, server_port):
 # --- Client Handling ---
 def serve_client(conn, addr, server_host, server_port):
     """
-    Handles a client connection by processing incoming HTTP requests
-    and sending back responses.
-
-    Args:
-        conn (socket.socket): The socket object for the client connection.
-        addr (tuple): The address of the client.
-        server_host (str): The server's host.
-        server_port (int): The server's port.
-
-    Returns:
-        None
+    Manages a client connection, processing multiple requests with keep-alive.
     """
     log(f"Connection from {addr}")
     persistent_count = 0
@@ -351,19 +265,8 @@ def serve_client(conn, addr, server_host, server_port):
 # --- Server ---
 def run_server(host, port, max_threads):
     """
-    Starts an HTTP server that listens on the given host and port.
-    The server serves files from the 'resources' directory and
-    handles GET and POST requests. The server also supports
-    persistent connections and keep-alive requests.
-
-    Args:
-        host (str): The host to listen on.
-        port (int): The port to listen on.
-        max_threads (int): The maximum number of threads to use for
-            serving client connections.
-
-    Returns:
-        None
+    Starts the multi-threaded HTTP server.
+    Handles GET and POST requests with thread pool concurrency.
     """
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -374,8 +277,7 @@ def run_server(host, port, max_threads):
     print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] HTTP Server started on http://{host}:{port}")
     print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Thread pool size: {max_threads}")
     print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Serving files from 'resources' directory")
-    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Press Ctrl+C to stop the server")
-    print()
+    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Press Ctrl+C to stop the server\n")
 
     pool = ThreadPoolExecutor(max_workers=max_threads)
     connection_queue = []
@@ -393,7 +295,6 @@ def run_server(host, port, max_threads):
             with lock:
                 active_tasks -= 1
                 print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Thread pool status: {active_tasks}/{max_threads} active")
-                # Serve queued connections if any
                 if connection_queue:
                     queued_conn, queued_addr = connection_queue.pop(0)
                     print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Connection dequeued, assigned to Thread-{threading.current_thread().name[-1]}")
@@ -420,17 +321,7 @@ def run_server(host, port, max_threads):
 
 def parse_args(): 
     """
-    Parse command-line arguments using argparse.
-
-    Returns a namespace containing the parsed arguments.
-
-    The available arguments are:
-
-    - port (int, default 8080): the port number to listen on
-    - host (str, default 127.0.0.1): the hostname or IP address to listen on
-    - max_threads (int, default 10): the maximum number of threads to use in the thread pool
-
-    The parsed arguments are returned as a namespace object. For example, to access the parsed port number, use args.port.
+    Parse command-line arguments: host, port, and max_threads.
     """
     parser = argparse.ArgumentParser(description="Multi-threaded HTTP Server")
     parser.add_argument("--port", type=int, nargs="?", default=8080)
